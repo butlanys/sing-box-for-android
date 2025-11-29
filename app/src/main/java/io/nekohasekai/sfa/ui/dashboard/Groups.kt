@@ -18,8 +18,21 @@ data class Group(
         item.selectable,
         item.selected,
         item.isExpand,
-        item.items.toList().map { GroupItem(it) },
+        sortItems(item.items.toList().mapIndexed { index, outboundItem ->
+            GroupItem(outboundItem, index)
+        }),
     )
+
+    companion object {
+        private fun sortItems(items: List<GroupItem>): List<GroupItem> {
+            return items.sortedWith(
+                compareBy<GroupItem> { if (it.hasUrlTestResult) 0 else 1 }
+                    .thenBy {
+                        if (it.hasUrlTestResult) it.urlTestDelay else it.subscriptionOrder
+                    }
+            )
+        }
+    }
 }
 
 data class GroupItem(
@@ -27,13 +40,17 @@ data class GroupItem(
     val type: String,
     val urlTestTime: Long,
     val urlTestDelay: Int,
+    val subscriptionOrder: Int,
 ) {
-    constructor(item: OutboundGroupItem) : this(
+    constructor(item: OutboundGroupItem, subscriptionOrder: Int) : this(
         item.tag,
         item.type,
         item.urlTestTime,
         item.urlTestDelay,
+        subscriptionOrder,
     )
+
+    val hasUrlTestResult: Boolean get() = urlTestTime > 0
 }
 
 internal fun OutboundGroupItemIterator.toList(): List<OutboundGroupItem> {
