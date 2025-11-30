@@ -32,6 +32,17 @@
                 tools:text="Profile name" />
 
             <TextView
+                android:id="@+id/profile_traffic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="?textAppearanceBodySmall"
+                android:textColor="?android:attr/textColorPrimary"
+                android:visibility="gone"
+                tools:text="流量：1.2 GB / 100 GB"
+                tools:visibility="visible" />
+
+            <TextView
                 tools:visibility="gone"
                 android:id="@+id/profile_last_updated"
                 android:layout_width="wrap_content"

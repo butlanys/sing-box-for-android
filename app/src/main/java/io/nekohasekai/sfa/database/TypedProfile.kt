@@ -40,6 +40,7 @@ class TypedProfile() : Parcelable {
     var lastUpdated: Date = Date(0)
     var autoUpdate: Boolean = false
     var autoUpdateInterval = 60
+    var subscriptionTraffic: SubscriptionTraffic? = null
 
     constructor(reader: Parcel) : this() {
         val version = reader.readInt()
@@ -51,16 +52,36 @@ class TypedProfile() : Parcelable {
         if (version >= 1) {
             autoUpdateInterval = reader.readInt()
         }
+        if (version >= 2) {
+            if (reader.readInt() == 1) {
+                subscriptionTraffic = SubscriptionTraffic(
+                    upload = reader.readLong(),
+                    download = reader.readLong(),
+                    total = reader.readLong(),
+                    expireAt = reader.readLong()
+                )
+            }
+        }
     }
 
     override fun writeToParcel(writer: Parcel, flags: Int) {
-        writer.writeInt(1)
+        writer.writeInt(2)
         writer.writeString(path)
         writer.writeInt(type.ordinal)
         writer.writeString(remoteURL)
         writer.writeInt(if (autoUpdate) 1 else 0)
         writer.writeLong(lastUpdated.time)
         writer.writeInt(autoUpdateInterval)
+        val traffic = subscriptionTraffic
+        if (traffic != null) {
+            writer.writeInt(1)
+            writer.writeLong(traffic.upload)
+            writer.writeLong(traffic.download)
+            writer.writeLong(traffic.total)
+            writer.writeLong(traffic.expireAt)
+        } else {
+            writer.writeInt(0)
+        }
     }
 
     override fun describeContents(): Int {
@@ -76,6 +97,13 @@ class TypedProfile() : Parcelable {
             return arrayOfNulls(size)
         }
     }
+
+    data class SubscriptionTraffic(
+        val upload: Long = 0L,
+        val download: Long = 0L,
+        val total: Long = 0L,
+        val expireAt: Long = 0L
+    )
 
     class Convertor {
 

@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
@@ -37,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Collections
+import java.util.Date
 
 class ConfigurationFragment : Fragment() {
 
@@ -216,8 +218,16 @@ class ConfigurationFragment : Fragment() {
                     R.string.profile_item_last_updated,
                     DateFormat.getDateTimeInstance().format(profile.typed.lastUpdated)
                 )
+                val traffic = profile.typed.subscriptionTraffic
+                if (traffic != null) {
+                    binding.profileTraffic.isVisible = true
+                    binding.profileTraffic.text = formatTrafficDisplay(traffic)
+                } else {
+                    binding.profileTraffic.isVisible = false
+                }
             } else {
                 binding.profileLastUpdated.isVisible = false
+                binding.profileTraffic.isVisible = false
             }
             binding.root.setOnClickListener {
                 val intent = Intent(binding.root.context, EditProfileActivity::class.java)
@@ -274,6 +284,29 @@ class ConfigurationFragment : Fragment() {
                     }
                 }
                 popup.show()
+            }
+        }
+
+        private fun formatTrafficDisplay(traffic: TypedProfile.SubscriptionTraffic): String {
+            val context = binding.root.context
+            val used = traffic.upload + traffic.download
+            val usedText = Libbox.formatBytes(used)
+            val baseText = if (traffic.total > 0L) {
+                context.getString(
+                    R.string.profile_item_traffic_value,
+                    usedText,
+                    Libbox.formatBytes(traffic.total)
+                )
+            } else {
+                context.getString(R.string.profile_item_traffic_used_only, usedText)
+            }
+            val expireText = traffic.expireAt.takeIf { it > 0L }?.let {
+                DateFormat.getDateTimeInstance().format(Date(it))
+            }
+            return if (expireText != null) {
+                context.getString(R.string.profile_item_traffic_with_expire, baseText, expireText)
+            } else {
+                baseText
             }
         }
     }

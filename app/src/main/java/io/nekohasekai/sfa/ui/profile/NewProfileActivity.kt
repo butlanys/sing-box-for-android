@@ -23,6 +23,7 @@ import io.nekohasekai.sfa.ktx.startFilesForResult
 import io.nekohasekai.sfa.ktx.text
 import io.nekohasekai.sfa.ui.shared.AbstractActivity
 import io.nekohasekai.sfa.utils.HTTPClient
+import io.nekohasekai.sfa.utils.SubscriptionTrafficParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -174,11 +175,13 @@ class NewProfileActivity : AbstractActivity<ActivityAddProfileBinding>() {
             TypedProfile.Type.Remote.getString(this) -> {
                 typedProfile.type = TypedProfile.Type.Remote
                 val remoteURL = binding.remoteURL.text
-                val content = HTTPClient().use { it.getString(remoteURL) }
-                Libbox.checkConfig(content)
-                configFile.writeText(content)
+                val response = HTTPClient().use { it.request(remoteURL) }
+                Libbox.checkConfig(response.body)
+                configFile.writeText(response.body)
                 typedProfile.remoteURL = remoteURL
                 typedProfile.lastUpdated = Date()
+                typedProfile.subscriptionTraffic =
+                    SubscriptionTrafficParser.parse(response.headers["subscription-userinfo"])
                 typedProfile.autoUpdate =
                     EnabledType.valueOf(this, binding.autoUpdate.text).boolValue
                 binding.autoUpdateInterval.text.toIntOrNull()?.also {

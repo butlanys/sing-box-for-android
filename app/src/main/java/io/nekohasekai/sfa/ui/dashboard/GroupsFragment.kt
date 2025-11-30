@@ -23,14 +23,17 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.databinding.FragmentDashboardGroupsBinding
 import io.nekohasekai.sfa.databinding.ViewDashboardGroupBinding
 import io.nekohasekai.sfa.databinding.ViewDashboardGroupItemBinding
+import io.nekohasekai.sfa.databinding.ViewMajorSiteLatencyItemBinding
 import io.nekohasekai.sfa.ktx.colorForURLTestDelay
 import io.nekohasekai.sfa.ktx.errorDialogBuilder
+import io.nekohasekai.sfa.ktx.getAttrColor
 import io.nekohasekai.sfa.ktx.text
 import io.nekohasekai.sfa.ui.MainActivity
 import io.nekohasekai.sfa.utils.CommandClient
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -40,6 +43,8 @@ class GroupsFragment : Fragment(), CommandClient.Handler {
     private val activity: MainActivity? get() = super.getActivity() as MainActivity?
     private var binding: FragmentDashboardGroupsBinding? = null
     private var adapter: Adapter? = null
+    private var latencyAdapter: MajorSiteLatencyAdapter? = null
+    private var latencyJob: Job? = null
     private val commandClient =
         CommandClient(lifecycleScope, CommandClient.ConnectionType.Groups, this)
 
@@ -56,6 +61,7 @@ class GroupsFragment : Fragment(), CommandClient.Handler {
     private fun onCreate() {
         val activity = activity ?: return
         val binding = binding ?: return
+        setupLatencySection(binding)
         adapter = Adapter()
         binding.container.adapter = adapter
         binding.container.layoutManager = LinearLayoutManager(requireContext())
@@ -70,6 +76,16 @@ class GroupsFragment : Fragment(), CommandClient.Handler {
         super.onDestroyView()
         binding = null
         commandClient.disconnect()
+        latencyJob?.cancel()
+        latencyAdapter = null
+    }
+
+    private fun setupLatencySection(binding: FragmentDashboardGroupsBinding) {
+        val adapter = MajorSiteLatencyAdapter()
+        latencyAdapter = adapter
+        binding.latencyList.layoutManager = GridLayoutManager(requireContext(), 2)
+        binding.latencyList.adapter = adapter
+        adapter.setItems(MajorSiteCatalog.sites.map { MajorSiteLatencyState(it) })
     }
 
     private var displayed = false
@@ -79,7 +95,41 @@ class GroupsFragment : Fragment(), CommandClient.Handler {
             displayed = newValue
             binding.statusText.isVisible = !displayed
             binding.container.isVisible = displayed
+            binding.latencyCard.isVisible = displayed
+            if (displayed) {
+                startMajorSiteLatencyTesting()
+            } else {
+                stopMajorSiteLatencyTesting()
+            }
         }
+    }
+
+    private fun startMajorSiteLatencyTesting() {
+        val adapter = latencyAdapter ?: return
+        latencyJob?.cancel()
+        val initialStates = MajorSiteCatalog.sites.map { MajorSiteLatencyState(it, LatencyStatus.Testing) }
+        adapter.setItems(initialStates)
+        latencyJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            MajorSiteCatalog.sites.forEachIndexed { index, site ->
+                val result = MajorSiteLatencyTester.measure(site)
+                withContext(Dispatchers.Main) {
+                    adapter.updateItem(
+                        index,
+                        MajorSiteLatencyState(
+                            site = site,
+                            status = if (result.success) LatencyStatus.Success else LatencyStatus.Failure,
+                            latencyMs = result.latencyMs
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun stopMajorSiteLatencyTesting() {
+        latencyJob?.cancel()
+        latencyJob = null
+        latencyAdapter?.setItems(MajorSiteCatalog.sites.map { MajorSiteLatencyState(it) })
     }
 
     override fun onConnected() {
@@ -324,5 +374,84 @@ class GroupsFragment : Fragment(), CommandClient.Handler {
             }
         }
     }
-}
 
+    private class MajorSiteLatencyAdapter :
+        RecyclerView.Adapter<MajorSiteLatencyView>() {
+
+        private val items = mutableListOf<MajorSiteLatencyState>()
+
+        fun setItems(newItems: List<MajorSiteLatencyState>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        fun updateItem(index: Int, newItem: MajorSiteLatencyState) {
+            if (index in items.indices) {
+                items[index] = newItem
+                notifyItemChanged(index)
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MajorSiteLatencyView {
+            val binding = ViewMajorSiteLatencyItemBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+            return MajorSiteLatencyView(binding)
+        }
+
+        override fun onBindViewHolder(holder: MajorSiteLatencyView, position: Int) {
+            holder.bind(items[position])
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
+
+    private class MajorSiteLatencyView(
+        private val binding: ViewMajorSiteLatencyItemBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(state: MajorSiteLatencyState) {
+            val context = binding.root.context
+            binding.siteIcon.setImageResource(state.site.iconRes)
+            binding.siteName.setText(state.site.nameRes)
+            binding.siteRegion.setText(state.site.region.labelRes)
+            when (state.status) {
+                LatencyStatus.Idle -> {
+                    binding.siteLatency.text =
+                        context.getString(R.string.major_site_latency_pending)
+                    binding.siteLatency.setTextColor(
+                        context.getAttrColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+                    )
+                }
+
+                LatencyStatus.Testing -> {
+                    binding.siteLatency.text =
+                        context.getString(R.string.major_site_latency_testing)
+                    binding.siteLatency.setTextColor(
+                        context.getAttrColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+                    )
+                }
+
+                LatencyStatus.Failure -> {
+                    binding.siteLatency.text =
+                        context.getString(R.string.major_site_latency_failed)
+                    binding.siteLatency.setTextColor(
+                        context.getAttrColor(com.google.android.material.R.attr.colorError)
+                    )
+                }
+
+                LatencyStatus.Success -> {
+                    val latency = state.latencyMs ?: 0
+                    binding.siteLatency.text =
+                        context.getString(R.string.major_site_latency_value, latency)
+                    binding.siteLatency.setTextColor(
+                        colorForURLTestDelay(context, latency)
+                    )
+                }
+            }
+        }
+    }
+}

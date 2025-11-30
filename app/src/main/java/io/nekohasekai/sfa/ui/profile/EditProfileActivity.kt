@@ -20,6 +20,7 @@ import io.nekohasekai.sfa.ktx.setSimpleItems
 import io.nekohasekai.sfa.ktx.text
 import io.nekohasekai.sfa.ui.shared.AbstractActivity
 import io.nekohasekai.sfa.utils.HTTPClient
+import io.nekohasekai.sfa.utils.SubscriptionTrafficParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -170,15 +171,17 @@ class EditProfileActivity : AbstractActivity<ActivityEditProfileBinding>() {
         lifecycleScope.launch(Dispatchers.IO) {
             var selectedProfileUpdated = false
             try {
-                val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
-                Libbox.checkConfig(content)
+                val response = HTTPClient().use { it.request(profile.typed.remoteURL) }
+                Libbox.checkConfig(response.body)
                 val file = File(profile.typed.path)
-                if (file.readText() != content) {
-                    File(profile.typed.path).writeText(content)
+                if (file.readText() != response.body) {
+                    File(profile.typed.path).writeText(response.body)
                     if (profile.id == Settings.selectedProfile) {
                         selectedProfileUpdated = true
                     }
                 }
+                profile.typed.subscriptionTraffic =
+                    SubscriptionTrafficParser.parse(response.headers["subscription-userinfo"])
                 profile.typed.lastUpdated = Date()
                 ProfileManager.update(profile)
             } catch (e: Exception) {

@@ -14,6 +14,7 @@ import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.database.TypedProfile
 import io.nekohasekai.sfa.utils.HTTPClient
+import io.nekohasekai.sfa.utils.SubscriptionTrafficParser
 import java.io.File
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -77,15 +78,17 @@ class UpdateProfileWork {
                     continue
                 }
                 try {
-                    val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
-                    Libbox.checkConfig(content)
+                    val response = HTTPClient().use { it.request(profile.typed.remoteURL) }
+                    Libbox.checkConfig(response.body)
                     val file = File(profile.typed.path)
-                    if (file.readText() != content) {
-                        File(profile.typed.path).writeText(content)
+                    if (file.readText() != response.body) {
+                        File(profile.typed.path).writeText(response.body)
                         if (profile.id == selectedProfile) {
                             selectedProfileUpdated = true
                         }
                     }
+                    profile.typed.subscriptionTraffic =
+                        SubscriptionTrafficParser.parse(response.headers["subscription-userinfo"])
                     profile.typed.lastUpdated = Date()
                     ProfileManager.update(profile)
                 } catch (e: Exception) {

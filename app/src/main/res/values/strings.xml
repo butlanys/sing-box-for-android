@@ -30,6 +30,9 @@
     <string name="profile_input_required">Required</string>
     <string name="profile_empty">Empty profiles</string>
     <string name="profile_item_last_updated">Last Updated: %s</string>
+    <string name="profile_item_traffic_value">Traffic: %1$s / %2$s</string>
+    <string name="profile_item_traffic_used_only">Traffic: used %1$s</string>
+    <string name="profile_item_traffic_with_expire">%1$s · Expires %2$s</string>
     <string name="profile_last_updated">Last Updated</string>
     <string name="profile_update">Update</string>
     <string name="profile_auto_update">Auto Update</string>
@@ -56,6 +59,23 @@
     <string name="menu_share">Share</string>
 
     <string name="status_default">Service not started</string>
+    <string name="major_site_latency_title">Major Site Latency</string>
+    <string name="major_site_latency_subtitle">Check latency for popular domestic and global sites</string>
+    <string name="major_site_latency_region_domestic">Domestic</string>
+    <string name="major_site_latency_region_global">Global</string>
+    <string name="major_site_latency_bytedance">ByteDance</string>
+    <string name="major_site_latency_wechat">WeChat</string>
+    <string name="major_site_latency_bilibili">Bilibili</string>
+    <string name="major_site_latency_taobao">Taobao</string>
+    <string name="major_site_latency_github">GitHub</string>
+    <string name="major_site_latency_cloudflare">Cloudflare</string>
+    <string name="major_site_latency_jsdelivr">jsDelivr</string>
+    <string name="major_site_latency_youtube">YouTube</string>
+    <string name="major_site_latency_pending">Pending</string>
+    <string name="major_site_latency_testing">Testing...</string>
+    <string name="major_site_latency_failed">Failed</string>
+    <string name="major_site_latency_value">%1$d ms</string>
+    <string name="major_site_latency_icon_content_description">网站图标</string>
     <string name="status_starting">Service starting…</string>
     <string name="status_stopping">Service stopping…</string>
     <string name="status_started">Service started</string>
